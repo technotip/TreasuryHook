@@ -165,3 +165,6 @@ If the genesis mint hook is not set, the treasury will not be able to forward th
   ]
 }
 ```
+
+Abstract diagram to illustrate the concept:
+<img width="1007" alt="Screenshot 2024-10-22 at 1 27 16 PM" src="https://github.com/user-attachments/assets/414116e6-df26-469f-8e29-136db4b6dfb7">
