@@ -108,8 +108,11 @@ main();
 3. Now you can transfer the funds in Account A to treasury account.
 
 4. Since treasury account has all the funds, it can also claim rewards every month.
+
    - The monthly claim rewards(4%) will be immediately transferred to account A.(Someone has to invoke the claim reward transaction on treasury account)
    - And account A can also withdraw set amount(set as hook parameter - 0x41U or A) from treasury account every specified ledger interval(set as hook parameter - 0x4CU or L).
+
+5. Once everything is working fine, blackhole the treasury account.
 
 This way the amount of XAH inflow into the market becomes predictable.
 
