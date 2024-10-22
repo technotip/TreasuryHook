@@ -1,5 +1,13 @@
 #include "hookapi.h"
 
+#define DONE(x)\
+    accept(SVAR(x),(uint32_t)__LINE__);
+
+#define NOPE(x)\
+{\
+    return rollback((x), sizeof(x), __LINE__);\
+}
+
 #define ACCOUNT_TO_BUF(buf_raw, i)\
 {\
     unsigned char* buf = (unsigned char*)buf_raw;\
@@ -9,8 +17,11 @@
 }
 
 #define AMOUNT_LIMIT 6215967485771284480LLU // 10M XAH
-#define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
-#define MAX_LEDGER_LIMIT 7884000 // 365 days
+// #define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
+// #define MAX_LEDGER_LIMIT 7884000 // 365 days
+#define MIN_LEDGER_LIMIT 3 // 12 seconds
+#define MAX_LEDGER_LIMIT 5 // 20 seconds
+#define ttSET_HOOK 22
 uint8_t msg_buf[30] = "You must wait 0000000 ledgers.";
 
 uint8_t ctxn[251] =
@@ -73,7 +84,7 @@ int64_t cbak(uint32_t reserve)
 
     uint32_t prev_release = 0;
     if(state(SVAR(prev_release), "PREV", 4) != 4)
-        accept(SBUF(reserve), 2);     
+        DONE(reserve);
 
     meta_slot(1);
     slot_subfield(1, sfTransactionResult, 1);
@@ -84,53 +95,22 @@ int64_t cbak(uint32_t reserve)
     }
 
     state_set(0, 0, "PREV", 4);
-    accept(SBUF(reserve), 3);
+    DONE(reserve);
     return 0;
 }
 
 int64_t hook(uint32_t reserved)
-{  
+{
+    int64_t tt = otxn_type();
 
     uint32_t current_ledger =  ledger_seq();
     uint32_t fls = current_ledger + 1;
-    uint32_t lls = fls + 4;    
+    uint32_t lls = fls + 4;
     etxn_reserve(1);
     uint8_t emithash[32];
-    
-    uint64_t amt_param;
-    if(hook_param(SVAR(amt_param), "A", 1) != 8) 
-        rollback(SBUF("Treasury: Misconfigured. Amount 'A' not set as Hook parameter"), 1);
-
-    if(float_compare(amt_param, 0, COMPARE_LESS | COMPARE_EQUAL) == 1)
-        rollback(SBUF("Treasury: Invalid amount."), 2); 
-
-    if(float_compare(amt_param, AMOUNT_LIMIT, COMPARE_GREATER | COMPARE_EQUAL) == 1)
-        rollback(SBUF("Treasury: You don't want to set it to 10M plus XAH!"), 3);         
-
-    uint32_t ledger_param;
-    if(hook_param(SVAR(ledger_param), "L", 1) != 4)
-        rollback(SBUF("Treasury: Misconfigured. Ledger limit 'L' not set as Hook parameter"), 4);
-    
-    if(ledger_param < MIN_LEDGER_LIMIT)
-        rollback(SBUF("Treasury: Ledger limit must be greater than 324,000(15 days)."), 5);
-
-    if(ledger_param > MAX_LEDGER_LIMIT)
-        rollback(SBUF("Treasury: Ledger limit must be less than 7,884,000(365 days)."), 6);        
-
-    uint8_t dest_param[20];
-    if(hook_param(SBUF(dest_param), "D", 1) != 20)
-        rollback(SBUF("Treasury: Misconfigured. Destination 'D' not set as Hook parameter"), 7);   
-
-    uint8_t keylet[34];
-    if (util_keylet(keylet, 34, KEYLET_ACCOUNT, dest_param, 20, 0, 0, 0, 0) != 34)
-        rollback(SBUF("Treasury: Fetching Keylet Failed."), 8);
-
-    if (slot_set(SBUF(keylet), 1) == DOESNT_EXIST)
-        rollback(SBUF("Treasury: The Set Destination Account Does Not Exist."), 9);
-
 
     uint8_t claim[1];
-    if(otxn_param(claim, 1, "C", 1) == 1) {
+    if(tt == ttINVOKE && otxn_param(claim, 1, "C", 1) == 1) {
 
         hook_account(CACCOUNT_OUT, 20);
         *((uint32_t *)(CFLS_OUT)) = FLIP_ENDIAN(fls);
@@ -150,37 +130,77 @@ int64_t hook(uint32_t reserved)
             *b++ = (fee >> 0) & 0xFFU;
         }
 
+        // TODO: DA should we fetch the reward.c hook state here?
+        // The response is successful but the callback is failure
+
         if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
-            rollback(SBUF("Treasury: Failed To Emit."), 10);  
+            NOPE("Treasury: Failed To Emit.");
 
-        accept(SBUF("Treasury: Claimed successfully."), 11);             
+        DONE("Treasury: Claimed successfully.");
     }
-
-    uint64_t amount_xfl;
-    if(otxn_param(SVAR(amount_xfl), "W", 1) != 8)
-        rollback(SBUF("Treasury: Specify The Amount To Withdraw."), 12);
-
-    if(float_compare(amount_xfl, amt_param, COMPARE_GREATER) == 1)
-        rollback(SBUF("Treasury: Outgoing transaction exceeds the amount limit set by you."), 13);    
-
-    {
-        uint64_t drops = float_int(amount_xfl, 6, 1); 
-        uint8_t *b = AMOUNT_OUT; 
-        *b++ = 0b01000000 + ((drops >> 56) & 0b00111111); 
-        *b++ = (drops >> 48) & 0xFFU; 
-        *b++ = (drops >> 40) & 0xFFU; 
-        *b++ = (drops >> 32) & 0xFFU; 
-        *b++ = (drops >> 24) & 0xFFU; 
-        *b++ = (drops >> 16) & 0xFFU; 
-        *b++ = (drops >> 8) & 0xFFU; 
-        *b++ = (drops >> 0) & 0xFFU; 
-    }                            
-
-    hook_account(ACC_OUT, 20);
-    ACCOUNT_TO_BUF(DEST_OUT, dest_param);
 
     uint32_t last_release = 0;
     state(SVAR(last_release), "LAST", 4);
+
+    if (tt == ttSET_HOOK && last_release == 0)
+        DONE("Treasury: Allowing SetHook Transaction.")
+
+    if (tt != ttINVOKE)
+        NOPE("Treasury: HookOn field is incorrectly set.")
+
+    uint64_t amount_xfl;
+    if(otxn_param(SVAR(amount_xfl), "W", 1) != 8)
+        NOPE("Treasury: Specify The Amount To Withdraw.");
+
+    uint64_t amt_param;
+    if(hook_param(SVAR(amt_param), "A", 1) != 8)
+        NOPE("Treasury: Misconfigured. Amount 'A' not set as Hook parameter.");
+
+    if(float_compare(amt_param, 0, COMPARE_LESS | COMPARE_EQUAL) == 1)
+        NOPE("Treasury: Invalid amount.");
+
+    if(float_compare(amt_param, AMOUNT_LIMIT, COMPARE_GREATER | COMPARE_EQUAL) == 1)
+        NOPE("Treasury: You don't want to set it to 10M plus XAH!");
+
+    uint32_t ledger_param;
+    if(hook_param(SVAR(ledger_param), "L", 1) != 4)
+        NOPE("Treasury: Misconfigured. Ledger limit 'L' not set as Hook parameter.");
+
+    if(ledger_param < MIN_LEDGER_LIMIT)
+        NOPE("Treasury: Ledger limit must be greater than 324,000(15 days).");
+
+    if(ledger_param > MAX_LEDGER_LIMIT)
+        NOPE("Treasury: Ledger limit must be less than 7,884,000(365 days).");
+
+    uint8_t dest_param[20];
+    if(hook_param(SBUF(dest_param), "D", 1) != 20)
+        NOPE("Treasury: Misconfigured. Destination 'D' not set as Hook parameter.");
+
+    uint8_t keylet[34];
+    if (util_keylet(keylet, 34, KEYLET_ACCOUNT, dest_param, 20, 0, 0, 0, 0) != 34)
+        NOPE("Treasury: Fetching Keylet Failed.");
+
+    if (slot_set(SBUF(keylet), 1) == DOESNT_EXIST)
+        NOPE("Treasury: The Set Destination Account Does Not Exist.");
+
+    if(float_compare(amount_xfl, amt_param, COMPARE_GREATER) == 1)
+        NOPE("Treasury: Outgoing transaction exceeds the amount limit set by you.");
+
+    {
+        uint64_t drops = float_int(amount_xfl, 6, 1);
+        uint8_t *b = AMOUNT_OUT;
+        *b++ = 0b01000000 + ((drops >> 56) & 0b00111111);
+        *b++ = (drops >> 48) & 0xFFU;
+        *b++ = (drops >> 40) & 0xFFU;
+        *b++ = (drops >> 32) & 0xFFU;
+        *b++ = (drops >> 24) & 0xFFU;
+        *b++ = (drops >> 16) & 0xFFU;
+        *b++ = (drops >> 8) & 0xFFU;
+        *b++ = (drops >> 0) & 0xFFU;
+    }
+
+    hook_account(ACC_OUT, 20);
+    ACCOUNT_TO_BUF(DEST_OUT, dest_param);
 
     uint32_t lgr_elapsed = last_release + ledger_param;
     if (lgr_elapsed > current_ledger)
@@ -193,12 +213,12 @@ int64_t hook(uint32_t reserved)
         msg_buf[18] += (lgr_elapsed /     100) % 10;
         msg_buf[19] += (lgr_elapsed /      10) % 10;
         msg_buf[20] += (lgr_elapsed          ) % 10;
-        rollback(SBUF(msg_buf), 15);
+        NOPE(msg_buf);
     }
 
     *((uint32_t *)(FLS_OUT)) = FLIP_ENDIAN(fls);
     *((uint32_t *)(LLS_OUT)) = FLIP_ENDIAN(lls);
-    etxn_details(EMIT_OUT, 138U);    
+    etxn_details(EMIT_OUT, 138U);
     {
         int64_t fee = etxn_fee_base(SBUF(txn));
         uint8_t *b = FEE_OUT;
@@ -213,15 +233,15 @@ int64_t hook(uint32_t reserved)
     }
 
     if(emit(SBUF(emithash), SBUF(txn)) != 32)
-        rollback(SBUF("Treasury: Failed To Emit."), 14);       
+        NOPE("Treasury: Failed To Emit.");
 
     if (state_set(SVAR(current_ledger), "LAST", 4) != 4)
-        rollback(SBUF("Treasury: Could not update state entry, bailing."), 15);
+        NOPE("Treasury: Could not update state entry, bailing.");
 
     if (state_set(SVAR(last_release), "PREV", 4) != 4)
-        rollback(SBUF("Treasury: Could not update state entry, bailing."), 16);  
+        NOPE("Treasury: Could not update state entry, bailing.");
 
-    accept(SBUF("Treasury: Released successfully."), 17);
+    DONE("Treasury: Released successfully.");
     _g(1,1);
-    return 0;    
+    return 0;
 }
