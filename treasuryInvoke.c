@@ -17,10 +17,8 @@
 }
 
 #define AMOUNT_LIMIT 6215967485771284480LLU // 10M XAH
-// #define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
-// #define MAX_LEDGER_LIMIT 7884000 // 365 days
-#define MIN_LEDGER_LIMIT 3 // 12 seconds
-#define MAX_LEDGER_LIMIT 5 // 20 seconds
+#define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
+#define MAX_LEDGER_LIMIT 7884000 // 365 days
 #define ttSET_HOOK 22
 uint8_t msg_buf[30] = "You must wait 0000000 ledgers.";
 
