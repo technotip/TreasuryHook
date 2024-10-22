@@ -19,7 +19,6 @@
 #define AMOUNT_LIMIT 6215967485771284480LLU // 10M XAH
 #define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
 #define MAX_LEDGER_LIMIT 7884000 // 365 days
-#define ttSET_HOOK 22
 uint8_t msg_buf[30] = "You must wait 0000000 ledgers.";
 
 uint8_t ctxn[251] =
@@ -100,55 +99,14 @@ int64_t cbak(uint32_t reserve)
 int64_t hook(uint32_t reserved)
 {
     int64_t tt = otxn_type();
+    if (tt != ttINVOKE)
+        NOPE("Treasury: HookOn field is incorrectly set.");
 
     uint32_t current_ledger =  ledger_seq();
     uint32_t fls = current_ledger + 1;
     uint32_t lls = fls + 4;
     etxn_reserve(1);
     uint8_t emithash[32];
-
-    uint8_t claim[1];
-    if(tt == ttINVOKE && otxn_param(claim, 1, "C", 1) == 1) {
-
-        hook_account(CACCOUNT_OUT, 20);
-        *((uint32_t *)(CFLS_OUT)) = FLIP_ENDIAN(fls);
-        *((uint32_t *)(CLLS_OUT)) = FLIP_ENDIAN(lls);
-
-        etxn_details(CEMIT_OUT, 138U);
-        {
-            int64_t fee = etxn_fee_base(SBUF(ctxn));
-            uint8_t *b = CFEE_OUT;
-            *b++ = 0b01000000 + ((fee >> 56) & 0b00111111);
-            *b++ = (fee >> 48) & 0xFFU;
-            *b++ = (fee >> 40) & 0xFFU;
-            *b++ = (fee >> 32) & 0xFFU;
-            *b++ = (fee >> 24) & 0xFFU;
-            *b++ = (fee >> 16) & 0xFFU;
-            *b++ = (fee >> 8) & 0xFFU;
-            *b++ = (fee >> 0) & 0xFFU;
-        }
-
-        // TODO: DA should we fetch the reward.c hook state here?
-        // The response is successful but the callback is failure
-
-        if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
-            NOPE("Treasury: Failed To Emit.");
-
-        DONE("Treasury: Claimed successfully.");
-    }
-
-    uint32_t last_release = 0;
-    state(SVAR(last_release), "LAST", 4);
-
-    if (tt == ttSET_HOOK && last_release == 0)
-        DONE("Treasury: Allowing SetHook Transaction.")
-
-    if (tt != ttINVOKE)
-        NOPE("Treasury: HookOn field is incorrectly set.")
-
-    uint64_t amount_xfl;
-    if(otxn_param(SVAR(amount_xfl), "W", 1) != 8)
-        NOPE("Treasury: Specify The Amount To Withdraw.");
 
     uint64_t amt_param;
     if(hook_param(SVAR(amt_param), "A", 1) != 8)
@@ -181,6 +139,40 @@ int64_t hook(uint32_t reserved)
     if (slot_set(SBUF(keylet), 1) == DOESNT_EXIST)
         NOPE("Treasury: The Set Destination Account Does Not Exist.");
 
+    uint8_t claim[1];
+    if(otxn_param(claim, 1, "C", 1) == 1) 
+    {
+        hook_account(CACCOUNT_OUT, 20);
+        *((uint32_t *)(CFLS_OUT)) = FLIP_ENDIAN(fls);
+        *((uint32_t *)(CLLS_OUT)) = FLIP_ENDIAN(lls);
+
+        etxn_details(CEMIT_OUT, 138U);
+        {
+            int64_t fee = etxn_fee_base(SBUF(ctxn));
+            uint8_t *b = CFEE_OUT;
+            *b++ = 0b01000000 + ((fee >> 56) & 0b00111111);
+            *b++ = (fee >> 48) & 0xFFU;
+            *b++ = (fee >> 40) & 0xFFU;
+            *b++ = (fee >> 32) & 0xFFU;
+            *b++ = (fee >> 24) & 0xFFU;
+            *b++ = (fee >> 16) & 0xFFU;
+            *b++ = (fee >> 8) & 0xFFU;
+            *b++ = (fee >> 0) & 0xFFU;
+        }
+
+        // TODO: DA should we fetch the reward.c hook state here?
+        // The response is successful but the callback is failure
+
+        if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
+            NOPE("Treasury: Failed To Emit.");
+
+        DONE("Treasury: Claimed successfully.");
+    }
+
+    uint64_t amount_xfl;
+    if(otxn_param(SVAR(amount_xfl), "W", 1) != 8)
+        NOPE("Treasury: Specify The Amount To Withdraw.");
+
     if(float_compare(amount_xfl, amt_param, COMPARE_GREATER) == 1)
         NOPE("Treasury: Outgoing transaction exceeds the amount limit set by you.");
 
@@ -199,6 +191,9 @@ int64_t hook(uint32_t reserved)
 
     hook_account(ACC_OUT, 20);
     ACCOUNT_TO_BUF(DEST_OUT, dest_param);
+
+    uint32_t last_release = 0;
+    state(SVAR(last_release), "LAST", 4);
 
     uint32_t lgr_elapsed = last_release + ledger_param;
     if (lgr_elapsed > current_ledger)
