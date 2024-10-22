@@ -2,11 +2,7 @@
 
 Voluntarily lock up the amount of **XAH** going out from the treasury account every set ledger interval.
 
-( **Payment Based Hook:** https://github.com/technotip/HookExamples/blob/main/LockupFunds/treasury.c )
-
-**Invoke Based Hook:** https://github.com/technotip/HookExamples/blob/main/Treasury/treasuryInvoke.c
-
-With Invoke based hook, the idea is to blackhole the treasury account, and the only way to withdraw funds is through the invoke transaction. Anybody can invoke the claim reward and the withdraw transactions on treasury account - after specified ledger interval.
+The idea is to blackhole the treasury account, and the only way to withdraw funds is through the invoke transaction. Anybody can invoke the claim reward and the withdraw transactions on treasury account - after specified ledger interval.
 
 ### Installing the Hook on your account
 
