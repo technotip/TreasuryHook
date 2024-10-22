@@ -101,21 +101,24 @@ main();
 
 ### How it works
 
-1. A person with Account A can create another account B, and install the treasury hook on account B, with account A as the hook parameter(0x44U or D for destination account). Other hook parameters: limit amount to withdraw and the ledger interval to withdraw the limit amount.
+1. A person with Account A can create another account B, and install the treasury hook on account B (lets call it treasury account), with account A as the hook parameter(0x44U or D for destination account). Other hook parameters: limit amount to withdraw and the ledger interval to withdraw the limit amount.
 
-2. Now the person can transfer all his/her funds to account B (lets call it treasury account).
+2. Make some invoke transactions on treasury account, and check if the hook paramters are set correctly.
 
-3. Since treasury account has all the funds, it can also claim monthly rewards. The monthly rewards will be immediately transferred to account A.
-   And account A can also withdraw set amount(set as hook parameter - 0x41U or A) from treasury account every specified ledger interval(set as hook parameter - 0x4CU or L).
+3. Now you can transfer the funds in Account A to treasury account.
 
-This way the amount of XAH inflow into the market can be predictable.
+4. Since treasury account has all the funds, it can also claim rewards every month.
+   - The monthly claim rewards(4%) will be immediately transferred to account A.(Someone has to invoke the claim reward transaction on treasury account)
+   - And account A can also withdraw set amount(set as hook parameter - 0x41U or A) from treasury account every specified ledger interval(set as hook parameter - 0x4CU or L).
+
+This way the amount of XAH inflow into the market becomes predictable.
 
 ### Important notes
 
 1. The first hook (the treasury hook) must hook on Invoke.
 2. The second hook (the genesis mint hook) must hook only on GenesisMint.
 
-If the genesis mint hook is not set, the treasury will not be able to claim the genesis mint(ClaimReward) rewards.
+If the genesis mint hook is not set, the treasury will not be able to forward the claim reward to the destination account.
 
 ### Tools
 
