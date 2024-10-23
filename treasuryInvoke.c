@@ -73,7 +73,7 @@ int64_t cbak(uint32_t reserve)
 {
     uint32_t prev_release = 0;
     if(state(SVAR(prev_release), "PREV", 4) != 4)
-        DONE(reserve);     
+        DONE("Success");     
 
     meta_slot(1);
     slot_subfield(1, sfTransactionResult, 1);
@@ -84,7 +84,7 @@ int64_t cbak(uint32_t reserve)
     }
 
     state_set(0, 0, "PREV", 4);
-    DONE(reserve);  
+    DONE("Success");  
     return 0;
 }
 
@@ -157,17 +157,17 @@ int64_t hook(uint32_t reserved)
         if (util_keylet(HOOK_ROOT, 34, KEYLET_ACCOUNT, CACCOUNT_OUT, 20, 0, 0, 0, 0) != 34)
             NOPE("Treasury: Fetching Keylet Failed.");
 
-        slot_set(SBUF(HOOK_ROOT), 1);
+        slot_set(SBUF(HOOK_ROOT), 2);
 
         // this is a first time claim reward has run and will setup these fields
-        if (slot_subfield(1, sfRewardAccumulator, 2) != 2) {
+        if (slot_subfield(2, sfRewardAccumulator, 3) != 3) {
             if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
                 NOPE("Treasury: Reward Claim Setup Failed."); 
             DONE("Treasury: Passing reward setup txn");  
         }
             
-        slot_subfield(1, sfRewardTime, 3);   
-        int64_t time = slot(0, 0, 3);
+        slot_subfield(2, sfRewardTime, 4);   
+        int64_t time = slot(0, 0, 4);
         int64_t time_elapsed = ledger_last_time() - time;
 
         // load the reward rate and delay
