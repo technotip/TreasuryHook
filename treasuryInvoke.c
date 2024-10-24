@@ -90,9 +90,7 @@ int64_t cbak(uint32_t reserve)
     int8_t result;
     slot(SVAR(result), 1);
     if (result != 0)
-    {
         state_set(SVAR(prev_release), "LAST", 4);
-    }
 
     state_set(0, 0, "PREV", 4);
     DONE("Success");
