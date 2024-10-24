@@ -184,7 +184,7 @@ int64_t hook(uint32_t reserved)
         int64_t xfl_rr = DEFAULT_REWARD_RATE;
         int64_t xfl_rd = DEFAULT_REWARD_DELAY;
 
-        // load state if it exists (which it should)
+        // load state if it exists
         state_foreign(&xfl_rr, 8, "RR", 2, SBUF(reward_ns), SBUF(genesis_acc));
         state_foreign(&xfl_rd, 8, "RD", 2, SBUF(reward_ns), SBUF(genesis_acc));
 
