@@ -12,10 +12,8 @@
     }
 
 #define AMOUNT_LIMIT 6215967485771284480LLU // 10M XAH
-// #define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
-// #define MAX_LEDGER_LIMIT 7884000 // 365 days
-#define MIN_LEDGER_LIMIT 3 // 12 seconds
-#define MAX_LEDGER_LIMIT 5 // 20 seconds
+#define MIN_LEDGER_LIMIT 50     // 324000 ledger is 15 days. Changed to 50 ledger for testing
+#define MAX_LEDGER_LIMIT 7884000 // 365 days
 
 #define DEFAULT_REWARD_DELAY 6199553087261802496ULL // 2600000
 #define DEFAULT_REWARD_RATE 6038156834009797973ULL  // 0.00333333333f
@@ -176,7 +174,7 @@ int64_t hook(uint32_t reserved)
         {
             if (emit(SBUF(emithash), SBUF(ctxn)) != 32)
                 NOPE("Treasury: Reward Claim Setup Failed.");
-            DONE("Treasury: Passing reward setup txn.");
+            DONE("Treasury: Reward Claim Setup Passed.");
         }
 
         slot_subfield(2, sfRewardTime, 4);
@@ -248,7 +246,7 @@ int64_t hook(uint32_t reserved)
     uint32_t lgr_elapsed = last_release + ledger_param;
     if (lgr_elapsed > current_ledger)
     {
-        lgr_elapsed = last_release + ledger_param - current_ledger;
+        lgr_elapsed = lgr_elapsed - current_ledger;
         lmsg_buf[14] += (lgr_elapsed / 1000000) % 10;
         lmsg_buf[15] += (lgr_elapsed / 100000) % 10;
         lmsg_buf[16] += (lgr_elapsed / 10000) % 10;
