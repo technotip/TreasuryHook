@@ -38,8 +38,8 @@ uint8_t ctxn[251] =
 /* 0,  251                        */ 
 };
 
-#define CFLS_OUT     (ctxn + 15U) 
-#define CLLS_OUT     (ctxn + 21U) 
+#define CFLS_OUT     (ctxn + 15U)
+#define CLLS_OUT     (ctxn + 21U)
 #define CFEE_OUT     (ctxn + 26U)
 #define CACCOUNT_OUT (ctxn + 71U)
 #define CEMIT_OUT   (ctxn + 113U)
@@ -61,19 +61,19 @@ uint8_t txn[260] =
 /* 0,   260                         */ 
 };
 
-#define FLS_OUT    (txn + 15U) 
-#define LLS_OUT    (txn + 21U) 
-#define FEE_OUT    (txn + 35U) 
+#define FLS_OUT    (txn + 15U)
+#define LLS_OUT    (txn + 21U)
+#define FEE_OUT    (txn + 35U)
 #define AMOUNT_OUT (txn + 26U)
-#define ACC_OUT    (txn + 80U) 
-#define DEST_OUT   (txn + 102U) 
-#define EMIT_OUT   (txn + 122U) 
+#define ACC_OUT    (txn + 80U)
+#define DEST_OUT   (txn + 102U)
+#define EMIT_OUT   (txn + 122U)
 
 int64_t cbak(uint32_t reserve)
 {
     uint32_t prev_release = 0;
     if(state(SVAR(prev_release), "PREV", 4) != 4)
-        DONE("Success");     
+        DONE("Success");
 
     meta_slot(1);
     slot_subfield(1, sfTransactionResult, 1);
@@ -84,28 +84,28 @@ int64_t cbak(uint32_t reserve)
     }
 
     state_set(0, 0, "PREV", 4);
-    DONE("Success");  
+    DONE("Success");
     return 0;
 }
 
 int64_t hook(uint32_t reserved)
-{  
+{
     int64_t tt = otxn_type();
     if (tt != ttINVOKE)
         NOPE("Treasury: HookOn field is incorrectly set.");
 
     uint32_t current_ledger =  ledger_seq();
     uint32_t fls = current_ledger + 1;
-    uint32_t lls = fls + 4;    
+    uint32_t lls = fls + 4;
     etxn_reserve(1);
     uint8_t emithash[32];
     
     uint64_t amt_param;
-    if(hook_param(SVAR(amt_param), "A", 1) != 8) 
+    if(hook_param(SVAR(amt_param), "A", 1) != 8)
         NOPE("Treasury: Misconfigured. Amount 'A' not set as Hook parameter");
 
     if(float_compare(amt_param, 0, COMPARE_LESS | COMPARE_EQUAL) == 1)
-        NOPE("Treasury: Invalid amount."); 
+        NOPE("Treasury: Invalid amount.");
 
     if(float_compare(amt_param, AMOUNT_LIMIT, COMPARE_GREATER | COMPARE_EQUAL) == 1)
         NOPE("Treasury: You don't want to set it to 10M plus XAH!");
@@ -118,11 +118,11 @@ int64_t hook(uint32_t reserved)
         NOPE("Treasury: Ledger limit must be greater than 324,000(15 days)");
 
     if(ledger_param > MAX_LEDGER_LIMIT)
-        NOPE("Treasury: Ledger limit must be less than 7,884,000(365 days).");        
+        NOPE("Treasury: Ledger limit must be less than 7,884,000(365 days).");     
 
     uint8_t dest_param[20];
     if(hook_param(SBUF(dest_param), "D", 1) != 20)
-        NOPE("Treasury: Misconfigured. Destination 'D' not set as Hook parameter");   
+        NOPE("Treasury: Misconfigured. Destination 'D' not set as Hook parameter");
 
     uint8_t keylet[34];
     if (util_keylet(keylet, 34, KEYLET_ACCOUNT, dest_param, 20, 0, 0, 0, 0) != 34)
@@ -162,11 +162,11 @@ int64_t hook(uint32_t reserved)
         // this is a first time claim reward has run and will setup these fields
         if (slot_subfield(2, sfRewardAccumulator, 3) != 3) {
             if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
-                NOPE("Treasury: Reward Claim Setup Failed."); 
-            DONE("Treasury: Passing reward setup txn");  
+                NOPE("Treasury: Reward Claim Setup Failed.");
+            DONE("Treasury: Reward Claim Setup Passed.");
         }
             
-        slot_subfield(2, sfRewardTime, 4);   
+        slot_subfield(2, sfRewardTime, 4);
         int64_t time = slot(0, 0, 4);
         int64_t time_elapsed = ledger_last_time() - time;
 
@@ -177,19 +177,19 @@ int64_t hook(uint32_t reserved)
         int64_t xfl_rr = DEFAULT_REWARD_RATE;
         int64_t xfl_rd = DEFAULT_REWARD_DELAY;
     
-        // load state if it exists (which it should)
+        // load state if it exists
         state_foreign(&xfl_rr, 8, "RR", 2, SBUF(reward_ns), SBUF(genesis_acc));
         state_foreign(&xfl_rd, 8, "RD", 2, SBUF(reward_ns), SBUF(genesis_acc));
 
         // if either of these is 0 that's disabled
         if (xfl_rr <= 0 || xfl_rd <= 0 )
-            NOPE("Treasury: Rewards are disabled by governance.");        
+            NOPE("Treasury: Rewards are disabled by governance.");    
 
         int64_t required_delay = float_int(xfl_rd, 0, 0);
         if (required_delay < 0 || float_sign(xfl_rr) != 0 ||
                 float_compare(xfl_rr, float_one(), COMPARE_GREATER) ||
                 float_compare(xfl_rd, float_one(), COMPARE_LESS))
-            NOPE("Treasury: Rewards incorrectly configured by governance or unrecoverable error.");            
+            NOPE("Treasury: Rewards incorrectly configured by governance or unrecoverable error.");
 
         if (time_elapsed < required_delay)
         {
@@ -202,12 +202,12 @@ int64_t hook(uint32_t reserved)
             msg_buf[19] += (time_elapsed /      10) % 10;
             msg_buf[20] += (time_elapsed          ) % 10;
             NOPE(msg_buf);
-        }        
+        }
                         
         if(emit(SBUF(emithash), SBUF(ctxn)) != 32)
-            NOPE("Treasury: Failed To Emit.");  
+            NOPE("Treasury: Failed To Emit.");
 
-        DONE("Treasury: Claimed successfully.");             
+        DONE("Treasury: Claimed successfully.");
     }
 
     uint64_t amount_xfl;
@@ -215,20 +215,20 @@ int64_t hook(uint32_t reserved)
         NOPE("Treasury: Specify The Amount To Withdraw.");
 
     if(float_compare(amount_xfl, amt_param, COMPARE_GREATER) == 1)
-        NOPE("Treasury: Outgoing transaction exceeds the amount limit set by you.");    
+        NOPE("Treasury: Outgoing transaction exceeds the amount limit set by you.");
 
     {
-        uint64_t drops = float_int(amount_xfl, 6, 1); 
-        uint8_t *b = AMOUNT_OUT; 
-        *b++ = 0b01000000 + ((drops >> 56) & 0b00111111); 
-        *b++ = (drops >> 48) & 0xFFU; 
-        *b++ = (drops >> 40) & 0xFFU; 
-        *b++ = (drops >> 32) & 0xFFU; 
-        *b++ = (drops >> 24) & 0xFFU; 
-        *b++ = (drops >> 16) & 0xFFU; 
-        *b++ = (drops >> 8) & 0xFFU; 
-        *b++ = (drops >> 0) & 0xFFU; 
-    }                            
+        uint64_t drops = float_int(amount_xfl, 6, 1);
+        uint8_t *b = AMOUNT_OUT;
+        *b++ = 0b01000000 + ((drops >> 56) & 0b00111111);
+        *b++ = (drops >> 48) & 0xFFU;
+        *b++ = (drops >> 40) & 0xFFU;
+        *b++ = (drops >> 32) & 0xFFU;
+        *b++ = (drops >> 24) & 0xFFU;
+        *b++ = (drops >> 16) & 0xFFU;
+        *b++ = (drops >> 8) & 0xFFU;
+        *b++ = (drops >> 0) & 0xFFU;
+    }
 
     hook_account(ACC_OUT, 20);
     ACCOUNT_TO_BUF(DEST_OUT, dest_param);
@@ -239,7 +239,7 @@ int64_t hook(uint32_t reserved)
     uint32_t lgr_elapsed = last_release + ledger_param;
     if (lgr_elapsed > current_ledger)
     {
-        lgr_elapsed = last_release + ledger_param - current_ledger;
+        lgr_elapsed = lgr_elapsed - current_ledger;
         msg_buf[14] += (lgr_elapsed / 1000000) % 10;
         msg_buf[15] += (lgr_elapsed /  100000) % 10;
         msg_buf[16] += (lgr_elapsed /   10000) % 10;
@@ -252,7 +252,7 @@ int64_t hook(uint32_t reserved)
 
     *((uint32_t *)(FLS_OUT)) = FLIP_ENDIAN(fls);
     *((uint32_t *)(LLS_OUT)) = FLIP_ENDIAN(lls);
-    etxn_details(EMIT_OUT, 138U);    
+    etxn_details(EMIT_OUT, 138U);
     {
         int64_t fee = etxn_fee_base(SBUF(txn));
         uint8_t *b = FEE_OUT;
@@ -267,15 +267,15 @@ int64_t hook(uint32_t reserved)
     }
 
     if(emit(SBUF(emithash), SBUF(txn)) != 32)
-        NOPE("Treasury: Failed To Emit.");       
+        NOPE("Treasury: Failed To Emit.");
 
     if (state_set(SVAR(current_ledger), "LAST", 4) != 4)
         NOPE("Treasury: Could not update state entry, bailing.");
 
     if (state_set(SVAR(last_release), "PREV", 4) != 4)
-        NOPE("Treasury: Could not update state entry, bailing.");  
+        NOPE("Treasury: Could not update state entry, bailing.");
 
     DONE("Treasury: Released successfully.");
     _g(1,1);
-    return 0;    
+    return 0;
 }
