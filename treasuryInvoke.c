@@ -79,6 +79,20 @@ uint8_t txn[260] =
 #define DEST_OUT (txn + 102U)
 #define EMIT_OUT (txn + 122U)
 
+#define BE_DROPS(drops)\
+{\
+        uint64_t drops_tmp = drops;\
+        uint8_t* b = (uint8_t*)&drops;\
+        *b++ = 0b01000000 + (( drops_tmp >> 56 ) & 0b00111111 );\
+        *b++ = (drops_tmp >> 48) & 0xFFU;\
+        *b++ = (drops_tmp >> 40) & 0xFFU;\
+        *b++ = (drops_tmp >> 32) & 0xFFU;\
+        *b++ = (drops_tmp >> 24) & 0xFFU;\
+        *b++ = (drops_tmp >> 16) & 0xFFU;\
+        *b++ = (drops_tmp >>  8) & 0xFFU;\
+        *b++ = (drops_tmp >>  0) & 0xFFU;\
+}
+
 int64_t cbak(uint32_t reserve)
 {
     uint32_t prev_release = 0;
@@ -148,18 +162,10 @@ int64_t hook(uint32_t reserved)
         *((uint32_t *)(CLLS_OUT)) = FLIP_ENDIAN(lls);
 
         etxn_details(CEMIT_OUT, 138U);
-        {
-            int64_t fee = etxn_fee_base(SBUF(ctxn));
-            uint8_t *b = CFEE_OUT;
-            *b++ = 0b01000000 + ((fee >> 56) & 0b00111111);
-            *b++ = (fee >> 48) & 0xFFU;
-            *b++ = (fee >> 40) & 0xFFU;
-            *b++ = (fee >> 32) & 0xFFU;
-            *b++ = (fee >> 24) & 0xFFU;
-            *b++ = (fee >> 16) & 0xFFU;
-            *b++ = (fee >> 8) & 0xFFU;
-            *b++ = (fee >> 0) & 0xFFU;
-        }
+
+        int64_t fee = etxn_fee_base(SBUF(ctxn));
+        BE_DROPS(fee);
+        *((uint64_t*)(CFEE_OUT)) = fee;
 
         uint8_t HOOK_ROOT[34];
         if (util_keylet(HOOK_ROOT, 34, KEYLET_ACCOUNT, CACCOUNT_OUT, 20, 0, 0, 0, 0) != 34)
@@ -222,18 +228,9 @@ int64_t hook(uint32_t reserved)
     if (float_compare(amount_xfl, amt_param, COMPARE_GREATER) == 1)
         NOPE("Treasury: Outgoing transaction exceeds the amount limit set by you.");
 
-    {
-        uint64_t drops = float_int(amount_xfl, 6, 1);
-        uint8_t *b = AMOUNT_OUT;
-        *b++ = 0b01000000 + ((drops >> 56) & 0b00111111);
-        *b++ = (drops >> 48) & 0xFFU;
-        *b++ = (drops >> 40) & 0xFFU;
-        *b++ = (drops >> 32) & 0xFFU;
-        *b++ = (drops >> 24) & 0xFFU;
-        *b++ = (drops >> 16) & 0xFFU;
-        *b++ = (drops >> 8) & 0xFFU;
-        *b++ = (drops >> 0) & 0xFFU;
-    }
+    uint64_t drops = float_int(amount_xfl, 6, 1);
+    BE_DROPS(drops);
+    *((uint64_t*)(AMOUNT_OUT)) = drops;
 
     hook_account(ACC_OUT, 20);
     ACCOUNT_TO_BUF(DEST_OUT, dest_param);
@@ -258,18 +255,10 @@ int64_t hook(uint32_t reserved)
     *((uint32_t *)(FLS_OUT)) = FLIP_ENDIAN(fls);
     *((uint32_t *)(LLS_OUT)) = FLIP_ENDIAN(lls);
     etxn_details(EMIT_OUT, 138U);
-    {
-        int64_t fee = etxn_fee_base(SBUF(txn));
-        uint8_t *b = FEE_OUT;
-        *b++ = 0b01000000 + ((fee >> 56) & 0b00111111);
-        *b++ = (fee >> 48) & 0xFFU;
-        *b++ = (fee >> 40) & 0xFFU;
-        *b++ = (fee >> 32) & 0xFFU;
-        *b++ = (fee >> 24) & 0xFFU;
-        *b++ = (fee >> 16) & 0xFFU;
-        *b++ = (fee >> 8) & 0xFFU;
-        *b++ = (fee >> 0) & 0xFFU;
-    }
+
+    int64_t fee = etxn_fee_base(SBUF(txn));
+    BE_DROPS(fee);
+    *((uint64_t*)(FEE_OUT)) = fee;
 
     if (emit(SBUF(emithash), SBUF(txn)) != 32)
         NOPE("Treasury: Failed To Emit.");
