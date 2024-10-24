@@ -20,13 +20,13 @@ uint8_t txn[238] =
 /* 0,   238                         */ 
 };
 
-#define FLS_OUT    (txn + 15U) 
-#define LLS_OUT    (txn + 21U) 
-#define FEE_OUT    (txn + 35U) 
+#define FLS_OUT    (txn + 15U)
+#define LLS_OUT    (txn + 21U)
+#define FEE_OUT    (txn + 35U)
 #define AMOUNT_OUT (txn + 25U)
-#define ACC_OUT    (txn + 80U) 
-#define DEST_OUT   (txn + 102U) 
-#define EMIT_OUT   (txn + 122U) 
+#define ACC_OUT    (txn + 80U)
+#define DEST_OUT   (txn + 102U)
+#define EMIT_OUT   (txn + 122U)
 
 int64_t hook(uint32_t reserved)
 {
@@ -35,10 +35,10 @@ int64_t hook(uint32_t reserved)
         rollback(SBUF("Genesis Mint: Destination Account not set as Hook parameter"), 1);
 
     otxn_slot(1);
-    slot_subfield(1, sfGenesisMints, 1); 
+    slot_subfield(1, sfGenesisMints, 1);
     slot_subarray(1, 0, 1);
     slot_subfield(1, sfGenesisMint, 1);
-    
+
     slot_subfield(1, sfAmount, 2);
     int64_t txn_amount = slot_float(2);
 
@@ -50,13 +50,12 @@ int64_t hook(uint32_t reserved)
         rollback(SBUF("Genesis mint: Invalid Mint Destination."), 2);
 
     etxn_reserve(1);
-        
+
     uint32_t fls = (uint32_t)ledger_seq() + 1;
     *((uint32_t *)(FLS_OUT)) = FLIP_ENDIAN(fls);
 
     uint32_t lls = fls + 4;
     *((uint32_t *)(LLS_OUT)) = FLIP_ENDIAN(lls);
-
 
     etxn_details(EMIT_OUT, 116U);
 
@@ -85,11 +84,11 @@ int64_t hook(uint32_t reserved)
         *b++ = (fee >> 0) & 0xFFU;
     }
 
-    uint8_t emithash[32]; 
+    uint8_t emithash[32];
     if(emit(SBUF(emithash), SBUF(txn)) != 32)
-        rollback(SBUF("Genesis Mint: Failed To Emit."), 3);  
+        rollback(SBUF("Genesis Mint: Failed To Emit."), 3);
 
-    accept(SBUF("Genesis Mint: Passing ClaimReward."), 4);    
-    _g(1,1);            
-    return 0;    
+    accept(SBUF("Genesis Mint: Passing ClaimReward."), 4);
+    _g(1, 1);
+    return 0;
 }
